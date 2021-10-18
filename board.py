@@ -97,10 +97,14 @@ class Board():
         # get active player
         m = self.getActivePlayer()
 
+        # valid range
+        if (not pi in [0, 1, 2]) or (not pj in [0, 1, 2]):
+            return False
+
         # if not empty raise exception
         pv = self.positions[pi][pj]
         if pv != MARK_EMPTY:
-            raise Exception("Cannot Overwrite Position")
+            return False
 
         # else mark the position with the player mark
         self.positions[pi][pj] = m
@@ -111,8 +115,9 @@ class Board():
         else:
             self.activePlayer = MARK_X
 
-    # getBoardString() -> return string formatted board to be printed
-    def getBoardString(self) -> str:
+        return True
+
+    def __str__(self) -> str:
         ret = "\n"
         for i in range(0, 3):
             ret += "|"
@@ -121,3 +126,4 @@ class Board():
                 ret += "|"
             ret += "\n"
         return ret
+        
