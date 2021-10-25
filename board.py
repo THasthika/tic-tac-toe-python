@@ -6,78 +6,56 @@ MARK_X = "x"
 MARK_O = "o"
 MARK_EMPTY = "-"
 
-class Board():
+HORIZONTAL = [
+    ((0, 0), (0, 1), (0, 2)),
+    ((1, 0), (1, 1), (1, 2)),
+    ((2, 0), (2, 1), (2, 2))
+]
 
-    activePlayer = MARK_X
-    positions = [[MARK_EMPTY for _ in range(0, 3)] for _ in range(0, 3)]
+VERTICAL = [
+    ((0, 0), (1, 0), (2, 0)),
+    ((0, 1), (1, 1), (2, 1)),
+    ((0, 2), (1, 2), (2, 2))
+]
+
+DIAGONAL = [
+    ((0, 0), (1, 1), (2, 2)),
+    ((2, 0), (1, 1), (0, 2))
+]
+
+ALL = [*HORIZONTAL, *VERTICAL, *DIAGONAL]
+
+
+class Board:
+    
 
     def __init__(self) -> None:
-        pass
 
-    def getPosition(self, i, j):
+        self.activePlayer = MARK_X
+        self.positions = [[MARK_EMPTY for _ in range(0, 3)] for _ in range(0, 3)]
+
+    def get_position(self, i, j):
         return self.positions[i][j]
 
-    def checkWinningCondition(self):
-        
-        # check horizontal
-        for i in range(0, 3):
-            f = False
-            pv = None
-            for j in range(0, 3):
-                x = self.positions[i][j]
-                if x == MARK_EMPTY:
-                    f = False
-                    break
-                if pv == None:
-                    pv = x
-                    f = True
-                if pv != x:
-                    f = False
-                    break
-            if f == True:
-                return True
-        
-        # check vertical
-        for j in range(0, 3):
-            f = False
-            pv = None
-            for i in range(0, 3):
-                x = self.positions[i][j]
-                if x == MARK_EMPTY:
-                    f = False
-                    break
-                if pv == None:
-                    pv = x
-                    f = True
-                if pv != x:
-                    f = False
-                    break
-            if f == True:
-                return True
+    @staticmethod
+    def winner(state):
 
-        # check top-left to lower-right diagonal
-        for l in [[(0, 0), (1, 1), (2, 2)], [(0, 2), (1, 1), (2, 0)]]:
-            f = False
-            pv = None
-            for (i, j) in l:
-                x = self.positions[i][j]
-                if x == MARK_EMPTY:
-                    f = False
-                    break
-                if pv == None:
-                    pv = x
-                    f = True
-                if pv != x:
-                    f = False
-                    break
-            if f == True:
-                return True
+        item_list = list(map(
+            lambda x: ''.join(list(map(
+                lambda y: state[y[0]][y[1]], x)))
+            , ALL))
 
-        return False
+        if any(filter(lambda x: x == 'xxx', item_list)):
+            return 'x'
+
+        if any(filter(lambda x: x == 'ooo', item_list)):
+            return 'o'
+
+        return None
 
     # isPlayable() - check if the game can be progressed
-    def isPlayable(self):
-        
+    def is_playable(self):
+
         playable = False
 
         # if all the positions are not empty we cannot proceed
@@ -89,16 +67,16 @@ class Board():
         return playable
 
     # getActivePlayer() - return the player who needs to make the move
-    def getActivePlayer(self) -> str:
+    def get_active_payer(self) -> str:
         return self.activePlayer
 
-    def markPosition(self, pi, pj):
+    def mark_position(self, pi, pj):
 
         # get active player
-        m = self.getActivePlayer()
+        m = self.get_active_payer()
 
         # valid range
-        if (not pi in [0, 1, 2]) or (not pj in [0, 1, 2]):
+        if (pi not in [0, 1, 2]) or (pj not in [0, 1, 2]):
             return False
 
         # if not empty raise exception
@@ -126,4 +104,3 @@ class Board():
                 ret += "|"
             ret += "\n"
         return ret
-        

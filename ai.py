@@ -1,21 +1,22 @@
 import random
-from typing import List, Union
+from typing import List, Union, Tuple, Any
 
 from agent import Agent
-from board import MARK_O, MARK_X, MARK_EMPTY
+from board import MARK_O, MARK_X, MARK_EMPTY, ALL, Board
 import copy
 
 """
 node (move, value=None)
 """
 
-class MinMaxNode(object):
+class MinMaxNode:
 
-    def __init__(self, move, state, depth, value=None, parent=None) -> None:
+    def __init__(self, move, state, depth, player, value=None, parent=None) -> None:
         self.move = move
         self.state = state
         self.value = value
         self.depth = depth
+        self.player = player
         self.children = []
         self.parent = parent
 
@@ -33,9 +34,9 @@ class MinMaxNode(object):
             yield c
 
     def __str__(self) -> str:
-        return "Parent({}) -> Move: {} | Value: {} | Depth: {} | # Children: {}".format(None if self.parent is None else self.parent.move, self.move, self.value, self.depth, len(self.children))
+        return "Parent({}) -> Move: {} | Value: {} | Depth: {} | Player: {} | # Children: {}".format(None if self.parent is None else self.parent.move, self.move, self.value, self.depth, self.player, len(self.children))
 
-class MinMaxTree():
+class MinMaxTree:
 
     def __init__(self, root) -> None:
         self.root = root
@@ -59,26 +60,20 @@ class RandomAgent(Agent):
     def __init__(self, player) -> None:
         self.player = player
 
-    def getNextMove(self, state) -> Union[int, int]:
+    def get_next_move(self, state) -> Tuple[int, int]:
         ri = random.randint(1, 3)
         rj = random.randint(1, 3)
         while state[ri-1][rj-1] != MARK_EMPTY:
             ri = random.randint(1, 3)
             rj = random.randint(1, 3)
-        return (ri, rj)
+        return ri, rj
 
 class MinMaxAgent(Agent):
 
-    def __init__(self, player) -> None:
+    def __init__(self, player, max_depth=1) -> None:
         self.player = player
+        self.max_depth = max_depth
         self.opponent = MARK_X if player == MARK_O else MARK_O
-
-    def evaluate_item(self, c, t):
-        if c == self.player and t > 0:
-            t *= 2
-        elif c == self.opponent:
-            t *= -3 if t > 0 else 3
-        return t
 
     def evaluate(self, state) -> int:
 
@@ -88,52 +83,44 @@ class MinMaxAgent(Agent):
         horizontal, vertical and diagonal -> empty or like values increase score otherwise decrease
         """
 
-        h_s = 0
+        score = 0
 
-        ## check horizontal
+        for r in ALL:
+            pv = None
+            for (i, j) in r:
+                if pv is None:
+                    pv = state[i][j]
+                    continue
+                if pv == MARK_EMPTY:
+                    pv = None
+                    break
+                if pv != state[i][j]:
+                    pv = None
+                    break
+            if pv is None:
+                continue
+            if pv == self.player:
+                score += 1
+            elif pv == self.opponent:
+                score -= 1
 
-        for r in state:
-            t = 1
-            for c in r:
-                t = self.evaluate_item(c, t)
-            h_s += t
+        return score
 
-        ## check vertical
-
-        v_s = 0
-
-        for i in range(0, 3):
-            t = 1
-            for j in range(0, 3):
-                c = state[j][i]
-                t = self.evaluate_item(c, t)
-            v_s += t
-
-        ## check diagonal
-
-        d_s = 0
-
-        for d in [-1, 1]:
-            t = 1
-            for i in range(0, 3):
-                j = i if d == 1 else (2 - i)
-                c = state[i][j]
-                t = self.evaluate_item(c, t)
-            d_s += t
-
-        s = h_s + v_s + d_s
-
-        return s
-
-    def makeMove(self, move, state, player):
+    @staticmethod
+    def make_move(move, state, player):
         new_state = copy.deepcopy(state)
         new_state[move[0]-1][move[1]-1] = player
         return new_state
 
 
-    def generateMoves(self, state) -> List[Union[int, int]]:
+    @staticmethod
+    def generate_moves(state) -> List[Tuple[Union[int, Any], Union[int, Any]]]:
 
         moves = []
+
+        # check playable
+        if not Board.winner(state) is None:
+            return moves
 
         for (ri, r) in enumerate(state):
             for (ci, c) in enumerate(r):
@@ -142,83 +129,89 @@ class MinMaxAgent(Agent):
         
         return moves
 
-    def constructMinMaxTree(self, state, max_depth=1):
-        
-        root_node = MinMaxNode(None, state, 0)
-        nodes = [root_node]
-        c_player = self.player
+    def evaluate_node(self, node):
+        node.set_value(self.evaluate(node.state))
 
-        need_calculation = []
+    def process_node(self, node: MinMaxNode):
+
+        ## if evaluated no need to work
+        if node.value is not None:
+            return
+        
+        ## if no children evaluate
+        if len(node.children) == 0:
+            self.evaluate_node(node)
+            return
+
+        
+        ## if there are children, evaluate the children first
+        for n in node.children:
+            self.process_node(n)
+        
+        m = None
+
+        ## after evaluating the children take the max or minimum WRT
+        if node.player == self.player:
+            ## get maximum
+            m = node.children[0].value
+            for i in range(1, len(node.children)):
+                t = node.children[i].value
+                if m < t:
+                    m = t
+        else:
+            ## get minimum
+            m = node.children[0].value
+            for i in range(1, len(node.children)):
+                t = node.children[i].value
+                if m > t:
+                    m = t
+
+        node.value = m
+        
+
+    def construct_min_max_tree(self, state, max_depth=1):
+        
+        root_node = MinMaxNode(None, state, 0, self.player)
+        nodes = [root_node]
 
         while len(nodes) > 0:
-            c_node = nodes.pop(0)
-            moves = self.generateMoves(c_node.state)
+            c_node = nodes.pop(-1)
+            c_player = c_node.player
+
+            moves = []
+            if c_node.depth < max_depth:
+                moves = self.generate_moves(c_node.state)
+
+            # handle nodes that generate no moves
+            # either board is full, someone has won or max depth reached
+            if len(moves) == 0:
+                self.evaluate_node(c_node)
+
             for move in moves:
-                new_state = self.makeMove(move, c_node.state, c_player)
-                node = MinMaxNode(move, new_state, c_node.depth+1, parent=c_node)
+                new_state = self.make_move(move, c_node.state, c_player)
+                player = self.player if c_player == self.opponent else self.opponent
+                node = MinMaxNode(move, new_state, c_node.depth + 1, player, parent=c_node)
                 c_node.add_child(node)
-                if node.depth < max_depth:
-                    nodes.append(node)
-                    if node.depth + 1 == max_depth:
-                        need_calculation.append(node)
-                else:
-                    # calculate score
-                    node.set_value(self.evaluate(node.state))
-            # switch player
-            c_player = self.player if c_player == self.opponent else self.opponent
+                nodes.append(node)
 
-        if len(need_calculation) == 0:
-            need_calculation = [root_node]
-
-        while len(need_calculation) > 0:
-            c_node = need_calculation.pop(0)
-
-            if not c_node.value is None:
-                continue
-
-            isMax = True if c_node.depth % 2 == 0 else False
-
-            v = None
-            ## loop over all children and find the min or max
-            for child in c_node.next_child():
-                if v is None:
-                    v = child.value
-                    continue
-                if isMax:
-                    if v < child.value:
-                        v = child.value
-                else:
-                    if v > child.value:
-                        v = child.value
-            c_node.value = v
-
-            if not c_node.parent is None:
-                need_calculation.append(c_node.parent)
+        self.process_node(root_node)
 
         tree = MinMaxTree(root_node)
 
         return tree
 
-    def getBestMove(self, tree) -> Union[int, int]:
+    @staticmethod
+    def get_best_move(tree) -> Union[int, int]:
         root_node = tree.root
         rv = root_node.value
-        for c in root_node.next_child():
+        moves = []
+        for c in root_node.children:
             if rv == c.value:
-                return c.move
+                moves.append(c.move)
+        i = random.randint(0, len(moves)-1)
+        return moves[i]
 
-    def getNextMove(self, state) -> Union[int, int]:
-        # construct min max tree
-
-        # evaluate move score
-        # return (0, 0)
-
-        # current_score = self.evaluate(state)
-
-        t = self.constructMinMaxTree(state, max_depth=6)
-        print(t.root)
-        for x in t.root.next_child():
-            print(x)
-
-        move = self.getBestMove(t)
-
+    def get_next_move(self, state) -> Union[int, int]:
+        t = self.construct_min_max_tree(state, max_depth=self.max_depth)
+        move = self.get_best_move(t)
         return move

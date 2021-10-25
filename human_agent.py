@@ -8,7 +8,7 @@ class HumanAgent(Agent):
     def __init__(self, _player) -> None:
         pass
 
-    def getNextMove(self, state) -> Union[int, int]:
+    def get_next_move(self, state) -> Union[int, int]:
         inp = input("Enter Location: ")
         inp = inp.split(" ")
         i = int(inp[0])
