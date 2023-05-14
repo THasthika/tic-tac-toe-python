@@ -1,4 +1,3 @@
-import io
 from tqdm import tqdm
 
 from main import main
@@ -7,8 +6,10 @@ X_WON = 1
 O_WON = 2
 DRAW = 0
 
+
 def run_and_get_result(x_depth, o_depth):
-    cmd = ["--no-display", "--x-depth={}".format(x_depth), "--o-depth={}".format(o_depth)]
+    cmd = ["--no-display",
+           "--x-depth={}".format(x_depth), "--o-depth={}".format(o_depth)]
     winner = main(cmd)
     if winner == "x":
         return X_WON
@@ -17,8 +18,9 @@ def run_and_get_result(x_depth, o_depth):
     else:
         return DRAW
 
+
 run_configs = [
-    (6, 1, 50)
+    (4, 4, 1000)
 ]
 
 for config in run_configs:
@@ -37,5 +39,6 @@ for config in run_configs:
         elif r == O_WON:
             o_won += 1
         # print("Game Ended")
-    
-    print("x: {}, o: {}, draw: {}".format(x_won / (1.0 * runs), o_won / (1.0 * runs), draw / (1.0 * runs)))
+
+    print("x: {}, o: {}, draw: {}".format(x_won / (1.0 * runs),
+          o_won / (1.0 * runs), draw / (1.0 * runs)))
